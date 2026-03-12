@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Algo Playground</title>
+
+<style>
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 40px;
+    background: #f4f9f4;
+    color: #333;
+}
+
+h1 {
+    color: #2e7d32;
+    margin-bottom: 10px;
+}
+
+p {
+    margin-bottom: 25px;
+    font-size: 16px;
+}
+
+.projects {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    max-width: 700px;
+}
+
+.project-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.project-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+}
+
+.project-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2e7d32;
+    margin-bottom: 8px;
+}
+
+.project-desc {
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+button {
+
+    padding: 10px 16px;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    border: none;
+    border-radius: 6px;
+
+    background: #4CAF50;
+    color: white;
+
+    cursor: pointer;
+
+    transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.1s ease;
+
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+button:hover {
+    background: #43a047;
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>Algo Playground</h1>
+
+<p>
+Interactive simulations for exploring algorithms and data structures.
+Select a project below to begin.
+</p>
+
+<div class="projects">
+
+    <div class="project-card">
+
+        <div class="project-title">
+            Pathfinding Visualizer
+        </div>
+
+        <div class="project-desc">
+            Explore BFS, DFS, and A* on dynamically generated mazes or custom-built ones.
+        </div>
+
+        <button onclick="location.href='PathFinding/index.html'">
+            Open Project
+        </button>
+
+    </div>
+
+    <div class="project-card">
+
+        <div class="project-title">
+            Trie Autocomplete Simulator
+        </div>
+
+        <div class="project-desc">
+            See how a Trie structure powers fast autocomplete suggestions.
+        </div>
+
+        <button onclick="location.href='TrieSimulator/index.html'">
+            Open Project
+        </button>
+
+    </div>
+
+</div>
+
+</body>
+</html>
