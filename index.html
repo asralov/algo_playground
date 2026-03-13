@@ -24,24 +24,37 @@ p {
     margin-bottom: 25px;
     font-size: 16px;
 }
-
 .projects {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
-    max-width: 700px;
+    /* 1. Use 'auto-fill' to let cards wrap naturally */
+    /* 2. Set the minimum width to 250px so they never get too tiny */
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); 
+    
+    /* 3. A standard gap (20px-30px) is usually plenty */
+    gap: 25px; 
+    
+    /* 4. Increase this so 4 cards can actually fit (4 * 250px + gaps) */
+    /* Or set to 100% to use the full screen width */
+    max-width: 1200px; 
+    
+    margin: 0 auto;
+    width: 100%;
 }
 
 .project-card {
     background: white;
     padding: 20px;
     border-radius: 10px;
-
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    
+    /* 5. REMOVE any fixed 'width: ...px' here. Let the Grid handle it. */
+    /* This ensures the card stays within its grid cell. */
+    box-sizing: border-box; 
+    
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
-
 .project-card:hover {
     transform: translateY(-3px);
     box-shadow: 0 6px 14px rgba(0,0,0,0.15);
@@ -92,9 +105,9 @@ button:active {
 
 <body>
 
-<h1>Algo Playground</h1>
+<h1 style="text-align: center;">Algo Playground</h1>
 
-<p>
+<p style="text-align: center;">
 Interactive simulations for exploring algorithms and data structures.
 Select a project below to begin.
 </p>
@@ -132,6 +145,34 @@ Select a project below to begin.
         </button>
 
     </div>
+
+    <div class="project-card">
+        <div class="project-title">
+            Stack
+        </div>
+        <div class="project-desc">
+            Visualize LIFO (Last-In, First-Out) logic with interactive Push and Pop animations.
+        </div>
+        <button onclick="location.href='Stack/index.html'">
+            Open Project
+        </button>
+    </div>
+
+    <div class="project-card">
+
+        <div class="project-title">
+            Queue
+        </div>
+
+        <div class="project-desc">
+            Visualize FIFO (First-In, First First-Out) logic with interactive Enqueue and Dequeue operations.
+        </div>
+
+        <button onclick="location.href='Queue/index.html'">
+            Open Project
+        </button>
+    </div>
+
 
 </div>
 
