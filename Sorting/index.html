@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sorting Visualizer</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 40px;
+        background: #f4f9f4;
+        color: #333;
+      }
+
+      h1 {
+        color: #2e7d32;
+        margin-bottom: 10px;
+      }
+
+      p {
+        margin-bottom: 25px;
+        font-size: 16px;
+      }
+      #hint {
+        margin-bottom: 25px;
+        width: 60%;
+        max-width: 800px;
+        font-size: 14px;
+        background: white;
+        padding: 12px 18px;
+        border-radius: 6px;
+        border-left: 4px solid #4caf50;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        line-height: 1.5;
+      }
+
+      /* Chart Area */
+      #chart-container {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 6px;
+        height: 350px;
+        width: 90%;
+        max-width: 900px;
+        margin: 40px auto;
+        border-bottom: 4px solid #2e7d32;
+        padding: 10px;
+        /*background: white;*/
+        border-radius: 8px 8px 0 0;
+        /*box-shadow: 0 4px 12px rgba(0,0,0,0.05);*/
+      }
+
+      .bar {
+        background-color: #4caf50;
+        width: 40px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+        border-radius: 4px 4px 0 0;
+        transition: height 0.3s ease, background-color 0.3s ease,
+          transform 0.2s ease;
+        padding-top: 5px;
+      }
+
+      /* Animation States */
+      .bar.comparing {
+        background-color: #fdd835;
+        transform: scaleX(1.1);
+      } /* Yellow */
+      .bar.swapping {
+        background-color: #e57373;
+      } /* Red */
+      .bar.sorted {
+        background-color: #2e7d32;
+      } /* Dark Green */
+
+      /* Controls Area */
+      .controls {
+        text-align: center;
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: start;
+        gap: 15px;
+      }
+
+      .input-group {
+        display: flex;
+        gap: 10px;
+      }
+
+      input {
+        width: 200px;
+        padding: 10px 12px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        outline: none;
+        transition: border 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      input:focus {
+        border-color: #4caf50;
+        box-shadow: 0 0 5px rgba(76, 175, 80, 0.4);
+      }
+
+      /* Container for the slider to keep it aligned */
+      .input-group label {
+        font-weight: bold;
+        color: #2e7d32;
+        margin-right: 10px;
+      }
+
+      /* Base Slider Styling */
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 150px;
+        background: transparent;
+        cursor: pointer;
+      }
+
+      /* The Track (the horizontal line) */
+      input[type="range"]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 8px;
+        background: #e0e0e0;
+        border-radius: 4px;
+      }
+
+      input[type="range"]::-moz-range-track {
+        width: 100%;
+        height: 8px;
+        background: #e0e0e0;
+        border-radius: 4px;
+      }
+
+      /* The Thumb (the circle/knob) */
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 20px;
+        width: 20px;
+        border-radius: 50%;
+        background: #4caf50;
+        cursor: pointer;
+        margin-top: -6px; /* Centers thumb on the track */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transition: transform 0.1s ease;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        height: 20px;
+        width: 20px;
+        border: none;
+        border-radius: 50%;
+        background: #4caf50;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      /* Hover effects */
+      input[type="range"]:hover::-webkit-slider-thumb {
+        transform: scale(1.1);
+        background: #43a047;
+      }
+
+      /* Stats Display Styling */
+      #stats {
+        background: #fff;
+        padding: 8px 15px;
+        border-radius: 20px;
+        border: 1px solid #e0e0e0;
+        font-weight: 600;
+        color: #555;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      #stats span {
+        color: #2e7d32;
+      }
+
+      .action-group {
+        display: flex;
+        gap: 10px;
+        opacity: 0; /* Hidden until 3+ items exist */
+        transition: opacity 0.5s ease;
+        pointer-events: none;
+      }
+
+      .action-group.show {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      button {
+        padding: 10px 20px;
+        font-size: 14px;
+        font-weight: 600;
+        border: none;
+        border-radius: 6px;
+        background: #4caf50;
+        color: white;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+      }
+
+      button:hover {
+        background: #43a047;
+      }
+      button:active {
+        transform: translateY(1px);
+      }
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      #resetBtn {
+        background: #757575;
+      }
+      #playBtn {
+        background: #2e7d32;
+      }
+
+      select {
+        padding: 10px;
+        font-size: 14px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        background: white;
+        outline: none;
+        cursor: pointer;
+      }
+
+      select:focus {
+        border-color: #4caf50;
+      }
+    </style>
+  </head>
+  <body>
+    <button onclick="location.href='../index.html'">Back</button>
+
+    <h1>Sorting Visualizer</h1>
+
+    <p id="hint">
+      <strong>How to use:</strong> Add at least 3 numbers (10-100) to begin.
+      Click <strong>Visualize All</strong> to watch the bars "bubble" into
+      order, or use <strong>Step-by-Step</strong> to control the logic yourself!
+    </p>
+
+    <div class="controls">
+      <div class="input-group">
+        <select id="algoSelect">
+          <option value="bubble">Bubble Sort</option>
+          <option value="selection">Selection Sort</option>
+          <option value="insertion">Insertion Sort</option>
+          <option value="quick">Quick Sort</option>
+        </select>
+        <input
+          type="number"
+          id="sortInput"
+          placeholder="10-100"
+          min="10"
+          max="100"
+        />
+        <button id="addBtn">Add Bar</button>
+        <button id="randomBtn">Randomize</button>
+      </div>
+      <div class="input-group">
+        <label for="speedRange">Speed:</label>
+        <input
+          type="range"
+          id="speedRange"
+          min="50"
+          max="1000"
+          value="600"
+          style="width: 100px"
+        />
+
+        <div id="stats" style="margin-left: 20px; font-size: 14px; color: #666">
+          Comparisons: <span id="compCount">0</span> | Swaps:
+          <span id="swapCount">0</span>
+        </div>
+      </div>
+
+      <div class="action-group" id="sortActions">
+        <button id="stepBtn">Step-by-Step</button>
+        <button id="playBtn">Visualize All</button>
+        <button id="cancelBtn" style="background: #e57373; display: none">
+          Cancel
+        </button>
+        <button id="resetBtn">Clear All</button>
+      </div>
+    </div>
+
+    <div id="chart-container"></div>
+
+    <script src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  </body>
+</html>
