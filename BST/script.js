@@ -8,6 +8,7 @@ let isWorking = false;
 const insertBtn = document.getElementById("insertBtn");
 const deleteBtn = document.getElementById("deleteBtn");
 const bstInput = document.getElementById("bstInput");
+const resetBtn = document.getElementById('reset');
 
 // insert logic
 async function handleInsert() {
@@ -62,6 +63,20 @@ async function animateInsertion(root, val) {
   }
   drawTree();
 }
+
+// reset logic
+// Reset Logic
+resetBtn.addEventListener("click", () => {
+  if (isWorking) return; 
+
+  tree.root = null;
+
+  drawTree();
+
+  bstInput.value = "";
+  bstInput.focus();
+});
+
 
 // delete logic
 async function handleDelete() {

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Merge Sort Visualizer</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #f4f9f4;
+            color: #333;
+        }
+
+        h1 { color: #2e7d32; margin-bottom: 10px; }
+
+        #hint {
+            
+            margin-bottom: 25px;
+            width: 60%;
+            max-width: 800px;
+            font-size: 14px;
+            background: white;
+            padding: 12px 18px;
+            border-radius: 6px;
+            border-left: 4px solid #4caf50;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            line-height: 1.5;
+            margin-left: 0;
+            margin-right: auto;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: start;
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+
+        .input-group { display: flex; align-items: center; gap: 10px; }
+
+        input[type="text"] {
+            padding: 10px 12px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            outline: none;
+            width: 300px;
+        }
+
+        input[type="range"] { cursor: pointer; }
+
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            background: #4caf50;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        button:hover { background: #43a047; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        #resetBtn { background: #757575; }
+
+        /* The Animation Field */
+        #tree-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+            margin-top: 20px;
+        }
+
+        .level { display: flex; justify-content: center; gap: 25px; width: 100%; min-height: 50px; }
+
+        .array-block { 
+            display: flex; border: 2px solid #ccc; border-radius: 6px; 
+            background: white; overflow: hidden; transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .num-cell {
+            width: 40px; height: 40px; display: flex; align-items: center; 
+            justify-content: center; border-right: 1px solid #eee;
+            font-weight: 600; font-size: 14px; color: #555;
+        }
+        .num-cell:last-child { border-right: none; }
+
+        /* Logic Coloring */
+        .splitting { border-color: #fdd835; background: #fffde7; } /* Yellow */
+        .merging { border-color: #e57373; background: #ffebee; }   /* Red-ish */
+        .sorted { border-color: #2e7d32; background: #e8f5e9; }    /* Green */
+        .active-cell { background: #4caf50 !important; color: white; }
+    </style>
+</head>
+<body>
+    <button onclick="location.href='../index.html'">Back</button>
+
+    <h1>Merge Sort Visualizer</h1>
+
+    <p id="hint">
+        <strong>How to use:</strong> Enter numbers (10-100) <strong>separated by commas</strong>. 
+        Click <strong>Visualize All</strong> to watch the array divide into levels and merge back 
+        into a final sorted "hill" at the top!
+    </p>
+
+    <div class="controls">
+        <div class="input-group">
+            <input type="text" id="arrayInput" placeholder="e.g., 45, 12, 89, 33, 67" value="45, 12, 89, 33, 67, 21, 7, 54">
+            <button id="startBtn">Visualize</button>
+            <button id="resetBtn">Clear All</button>
+        </div>
+
+        <div class="input-group">
+            <label style="font-weight: bold; color: #2e7d32;">Speed:</label>
+            <input type="range" id="speedSlider" min="100" max="2000" value="800" step="100">
+        </div>
+    </div>
+
+    <div id="tree-container"></div>
+
+    <script src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</body>
+</html>
