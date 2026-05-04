@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linear Regression Visualizer</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #f4f9f4;
+            color: #333;
+        }
+
+        h1 { color: #2e7d32; margin-bottom: 10px; }
+
+        #hint {
+            margin-bottom: 25px;
+            width: 60%;
+            max-width: 800px;
+            font-size: 13px;
+            background: white;
+            padding: 14px 20px;
+            border-radius: 6px;
+            border-left: 4px solid #4caf50;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            line-height: 1.6;
+            margin-left: 0;
+            margin-right: auto;
+            text-align: left;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            max-width: 800px;
+        }
+
+        .input-group { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+
+        input[type="number"], select {
+            padding: 8px 12px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            outline: none;
+        }
+
+        /* Stylized Range Slider to match theme */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 150px;
+            height: 6px;
+            border-radius: 3px;
+            background: #c8e6c9;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4caf50;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #43a047;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            background: #4caf50;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        button:hover { background: #43a047; }
+        button:disabled { background-color: #c8e6c9; color: #7f8c8d; cursor: not-allowed; box-shadow: none; }
+        #resetBtn { background: #757575; }
+        #resetBtn:hover { background: #616161; }
+
+        #canvas-container {
+            position: relative;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 10px;
+            display: inline-block;
+        }
+
+        canvas {
+            display: block;
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: crosshair;
+        }
+
+        #stats {
+            margin-top: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        #stats span { color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <button onclick="location.href='../../index.html'">Back</button>
+
+    <h1>Linear Regression</h1>
+
+    <p id="hint">
+        <strong>What is Linear Regression?</strong> It is a supervised machine learning algorithm used to find the line of best fit. It models the relationship between the inputs ($X$) and outputs ($Y$) by calculating the optimal weights: slope ($m$) and intercept ($b$).<br><br>
+        <strong>What is the Learning Rate?</strong> It determines the step size taken during weight optimization. Optimal values range from 0.01 to 0.1.<br><br>
+        <strong>How to use:</strong> Click or tap directly on the canvas to add your custom points. Alternatively, click <strong>Add Random Points</strong>. Set your hyperparameters, and then click <strong>Train Model</strong>.
+    </p>
+
+    <div class="controls">
+        <div class="input-group">
+            <label style="font-weight: bold; color: #2e7d32;">Learning Rate:</label>
+            <input type="number" id="lrInput" value="0.05" step="0.01" min="0.01" max="1" style="width: 80px;">
+            
+            <label style="font-weight: bold; color: #2e7d32;">Epochs:</label>
+            <input type="number" id="epochsInput" value="100" step="10" min="10" max="1000" style="width: 80px;">
+
+            <button id="trainBtn">Train Model</button>
+            <button id="addRandomBtn">Add Random Points</button>
+            <button id="resetBtn">Clear All</button>
+        </div>
+
+        <div class="input-group">
+            <label style="font-weight: bold; color: #2e7d32;">Speed (ms):</label>
+            <input type="range" id="speedSlider" min="10" max="500" value="50" step="10" style="width: 150px;">
+        </div>
+
+        <div id="stats">
+            Current Epoch: <span id="epochCount">0</span> | 
+            Loss (MSE): <span id="lossVal">0.000</span> | 
+            Time Elapsed: <span id="timeVal">0.00s</span>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="plotCanvas" width="600" height="400"></canvas>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
