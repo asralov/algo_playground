@@ -35,4 +35,4 @@ You only need a modern web browser (Chrome, Firefox, Safari, or Edge) since the 
 ### Installation & Running
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/asralov/algo_playground.git](https://github.com/asralov/algo_playground.git)
+   git clone https://github.com/asralov/algo_playground.git
