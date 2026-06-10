@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logistic Regression Visualizer</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            margin: 40px;
+            background: #f4f9f4;
+            color: #333;
+        }
+
+        h1 { color: #2e7d32; margin-bottom: 10px; }
+
+        #hint {
+            margin-bottom: 25px;
+            width: 60%;
+            max-width: 800px;
+            font-size: 13px;
+            background: white;
+            padding: 14px 20px;
+            border-radius: 6px;
+            border-left: 4px solid #4caf50;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            line-height: 1.6;
+            margin-left: 0;
+            margin-right: auto;
+            text-align: left;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            max-width: 800px;
+        }
+
+        .input-group { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+
+        input[type="number"], select {
+            padding: 8px 12px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            outline: none;
+        }
+
+        /* Toggles and Radio Group for Placement Selection */
+        .class-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            font-weight: 600;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background: #fafafa;
+        }
+
+        #class0Label { color: #e57373; border-color: #e57373; }
+        #class1Label { color: #2e7d32; border-color: #4caf50; }
+
+        input[type="radio"] { cursor: pointer; accent-color: currentColor; }
+
+        /* Stylized Range Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 150px;
+            height: 6px;
+            border-radius: 3px;
+            background: #c8e6c9;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4caf50;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover { background: #43a047; }
+
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            background: #4caf50;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        button:hover { background: #43a047; }
+        button:disabled { background-color: #c8e6c9; color: #7f8c8d; cursor: not-allowed; box-shadow: none; }
+        #resetBtn { background: #757575; }
+        #resetBtn:hover { background: #616161; }
+
+        #canvas-container {
+            position: relative;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 10px;
+            display: inline-block;
+        }
+
+        canvas {
+            display: block;
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: crosshair;
+        }
+
+        #stats {
+            margin-top: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        #stats span { color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <button onclick="location.href='../../index.html'">Back</button>
+
+    <h1>Logistic Regression (Classification)</h1>
+
+    <p id="hint">
+        <strong>What is Logistic Regression?</strong> Unlike linear regression, it is a classification algorithm. It maps continuous inputs to a probability between 0 and 1 using the <strong>Sigmoid Activation Function</strong>, finding a boundary line that separates two unique classes.<br><br>
+        <strong>How to use:</strong> Select whether you want to drop <strong>Class 0 (Red)</strong> or <strong>Class 1 (Green)</strong> dots. Plot mixed points on the canvas, or let the tool generate them. Press <strong>Train Model</strong> to see the separating decision boundary organize itself in real-time.
+    </p>
+
+    <div class="controls">
+        <div class="input-group">
+            <div class="class-selector">
+                <span style="color: #555;">Place Element:</span>
+                <label class="radio-label" id="class0Label">
+                    <input type="radio" name="classType" value="0" checked> Class 0
+                </label>
+                <label class="radio-label" id="class1Label">
+                    <input type="radio" name="classType" value="1"> Class 1
+                </label>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label style="font-weight: bold; color: #2e7d32;">Learning Rate:</label>
+            <input type="number" id="lrInput" value="0.1" step="0.05" min="0.01" max="5" style="width: 80px;">
+            
+            <label style="font-weight: bold; color: #2e7d32;">Epochs:</label>
+            <input type="number" id="epochsInput" value="200" step="50" min="10" max="2000" style="width: 80px;">
+
+            <button id="trainBtn">Train Model</button>
+            <button id="addRandomBtn">Add Random Clusters</button>
+            <button id="resetBtn">Clear All</button>
+        </div>
+
+        <div class="input-group">
+            <label style="font-weight: bold; color: #2e7d32;">Speed (ms):</label>
+            <input type="range" id="speedSlider" min="5" max="200" value="20" step="5">
+        </div>
+
+        <div id="stats">
+            Current Epoch: <span id="epochCount">0</span> | 
+            Loss (Binary Cross-Entropy): <span id="lossVal">0.0000</span> | 
+            Time Elapsed: <span id="timeVal">0.00s</span>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="plotCanvas" width="600" height="400"></canvas>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

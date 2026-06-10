@@ -97,7 +97,6 @@ resetBtn.addEventListener('click', () => {
     trainBtn.disabled = false;
     draw();
 });
-
 // Run Machine Learning Algorithm (Gradient Descent)
 trainBtn.addEventListener('click', async () => {
     if (points.length < 2) {
@@ -105,6 +104,11 @@ trainBtn.addEventListener('click', async () => {
         return;
     }
     
+    // --- RESET WEIGHTS HERE SO THE SIMULATION STARTS OVER WITH THE SAME POINTS ---
+    m = 0.2; // Reset to initial visible slope
+    b = 0.3; // Reset to initial visible intercept
+    // ----------------------------------------------------------------------------
+
     isPlaying = true;
     toggleControls(true);
     
@@ -161,6 +165,5 @@ trainBtn.addEventListener('click', async () => {
     isPlaying = false;
     toggleControls(false);
 });
-
 // Initial Render
 draw();
