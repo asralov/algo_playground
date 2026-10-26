@@ -1,177 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trie Word Autocomplete Simulator</title>
-
-    <style>
-      body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        margin: 40px;
-        background: #f4f9f4;
-        color: #333;
-      }
-      #hint {
-        margin-bottom: 15px;
-        width: 30%;
-        font-size: 14px;
-        background: white;
-        padding: 8px 12px;
-        border-radius: 6px;
-        border-left: 4px solid #4caf50;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-      }
-
-      select {
-        padding: 9px 12px;
-
-        font-size: 14px;
-        font-weight: 600;
-
-        border-radius: 6px;
-        border: 1px solid #ccc;
-
-        background: white;
-        color: #333;
-
-        cursor: pointer;
-
-        transition: border 0.2s ease, box-shadow 0.2s ease;
-      }
-
-      select:hover {
-        border-color: #4caf50;
-      }
-
-      select:focus {
-        outline: none;
-        border-color: #4caf50;
-        box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
-      }
-
-      button {
-        padding: 10px 18px;
-        margin-top: 12px;
-        margin-right: 10px;
-
-        font-size: 14px;
-        font-weight: 600;
-
-        border: none;
-        border-radius: 6px;
-
-        background: #4caf50;
-        color: white;
-
-        cursor: pointer;
-
-        transition: background 0.2s ease, transform 0.1s ease,
-          box-shadow 0.1s ease;
-
-        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
-      }
-
-      button:hover {
-        background: #43a047;
-      }
-
-      button:active {
-        transform: translateY(1px);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-      }
-
-      button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        background: #9e9e9e;
-      }
-
-      h1 {
-        color: #2e7d32;
-        margin-bottom: 10px;
-      }
-
-      p {
-        margin-bottom: 15px;
-      }
-
-      input {
-        width: 300px;
-        padding: 10px 12px;
-        font-size: 16px;
-
-        border: 1px solid #ccc;
-        border-radius: 6px;
-
-        outline: none;
-        transition: border 0.2s ease, box-shadow 0.2s ease;
-      }
-
-      input:focus {
-        border-color: #4caf50;
-        box-shadow: 0 0 5px rgba(76, 175, 80, 0.4);
-      }
-
-      select {
-        padding: 8px 10px;
-        border-radius: 6px;
-        border: 1px solid #ccc;
-        margin-left: 8px;
-      }
-
-      ul {
-        margin-top: 15px;
-        padding-left: 0;
-        list-style-type: none;
-
-        width: 320px;
-        background: white;
-
-        border-radius: 6px;
-        overflow: hidden;
-
-        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-      }
-
-      li {
-        padding: 8px 10px;
-        border-bottom: 1px solid #eee;
-        transition: background 0.15s ease;
-      }
-
-      li:last-child {
-        border-bottom: none;
-      }
-
-      li:hover {
-        background: #e8f5e9;
-      }
-    </style>
-  </head>
-
-  <body>
-    <button onclick="location.href='../index.html'">Back</button>
-    <h1>Trie Autocomplete Simulator</h1>
-
-    <p id="hint">Start typing to see word suggestions:</p>
-
-    <input type="text" id="searchBox" placeholder="Type a word..." />
-
-    <br /><br />
-
-    <label for="limitSelect">Suggestions:</label>
-
-    <select id="limitSelect">
-      <option value="5">5</option>
-      <option value="10" selected>10</option>
-      <option value="15">15</option>
-      <option value="20">20</option>
-      <option value="25">25</option>
-    </select>
-
-    <ul id="suggestions"></ul>
-
-    <script type="module" src="script.js"></script>
-  </body>
-</html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Trie Explorer · Algo Playground</title><link rel="stylesheet" href="style.css"><script src="Trie.js" defer></script><script src="script.js" defer></script></head>
+<body><main>
+<a class="back" href="../index.html">← Algo Playground</a>
+<header><span class="eyebrow">STRINGS · PREFIX TREES</span><h1>See the tree behind autocomplete.</h1><p>A trie stores words one character at a time. Words that begin alike share the same path.</p></header>
+<div class="workspace"><aside class="panel">
+<h2>Explore a prefix</h2><label for="searchBox">Search prefix</label><input id="searchBox" value="ca" maxlength="24" placeholder="Try ca, car, or do" autocomplete="off" spellcheck="false">
+<div class="examples"><button data-prefix="ca">ca</button><button data-prefix="car">car</button><button data-prefix="do">do</button><button data-prefix="z">No match: z</button></div>
+<div class="actions"><button id="play">Replay search</button><button id="next" class="secondary">Next character</button></div>
+<label for="speed">Time per character <output id="speed-label">700 ms</output></label><input type="range" id="speed" min="150" max="1500" step="50" value="700">
+<hr><div class="section-heading"><h2>Completions</h2><select id="limitSelect" aria-label="Suggestion limit"><option>5</option><option selected>10</option><option>20</option></select></div><p class="muted" id="result-note"></p><ul id="suggestions"></ul>
+</aside><section class="panel tree-panel">
+<div class="section-heading"><div><span class="eyebrow">THE PREFIX TREE</span><h2>One edge. One character.</h2></div><span class="badge" id="dataset">Learning dictionary</span></div>
+<div class="legend"><span><i class="key path"></i>Prefix path</span><span><i class="key match"></i>Matching subtree</span><span><i class="key terminal"></i>Complete word</span></div>
+<div id="tree-scroll" tabindex="0" aria-label="Scrollable trie diagram"><svg id="tree" role="img" aria-labelledby="tree-title tree-desc"></svg></div>
+<p class="muted" id="diagram-note"></p><div class="trace"><span class="eyebrow">SEARCH TRACE</span><div id="breadcrumbs"></div><p id="status" role="status"></p></div>
+</section></div>
+<div class="bottom-grid"><section class="panel"><h2>Build the dictionary</h2><p class="muted">Insert <b>cart</b> to reuse c → a → r and add just one new node. Insert <b>ca</b> to mark an existing node as a complete word.</p>
+<form id="insert-form"><label for="new-word">New word (letters a–z, up to 24)</label><div class="actions"><input id="new-word" placeholder="cart" maxlength="24" pattern="[A-Za-z]{1,24}" required><button>Add word</button></div></form><p id="insert-status" role="status"></p><div id="word-bank" aria-label="Dictionary words"></div>
+<div class="actions"><button id="reset" class="secondary">Reset example</button><button id="load" class="secondary">Load full dictionary</button></div><p id="load-status" class="muted" role="status"></p></section>
+<section class="panel explanation"><span class="eyebrow">WHY A TRIE?</span><h2>Find the prefix. Explore below it.</h2><ol><li><b>Start at the root.</b> It represents the empty prefix.</li><li><b>Follow one edge per letter.</b> Searching “car” follows c → a → r. Other branches are skipped.</li><li><b>Collect words below that node.</b> A double ring means a word ends here. “car” can be a word and still lead to “care”.</li></ol><p class="muted">Finding a prefix of length p takes O(p) child lookups. Listing completions takes additional work to visit their branches and produce the words.</p><p class="muted">Diagram reference: <a href="https://www.cs.usfca.edu/~galles/visualization/Trie.html" target="_blank" rel="noopener noreferrer">USF’s Trie (Prefix Tree) visualization ↗</a></p></section></div>
+</main></body></html>

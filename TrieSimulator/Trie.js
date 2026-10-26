@@ -57,6 +57,7 @@ class Trie {
    * with that prefix
    */
   findPrefix(prefix) {
+    prefix = prefix.toLowerCase();
     let current = this.root;
     for (let character of prefix) {
       // that node does not exist
@@ -76,13 +77,15 @@ class Trie {
    * @param {string} currentWord
    * @param {Array} results
    */
-  collectWords(node, currentWord, results) {
+  collectWords(node, currentWord, results, limit = Infinity) {
+    if (results.length >= limit) return;
     if (node.isWord) {
       results.push(currentWord);
     }
     // recursively dive into other branches with new character added
-    for (let [character, childNode] of node.children) {
-      this.collectWords(childNode, currentWord + character, results);
+    for (let [character, childNode] of [...node.children].sort(([a], [b]) => a.localeCompare(b))) {
+      if (results.length >= limit) break;
+      this.collectWords(childNode, currentWord + character, results, limit);
     }
   }
 
@@ -91,16 +94,18 @@ class Trie {
    * @param {string} prefix
    * @returns an array of strings with words that match the prefix
    */
-  autocomplete(prefix) {
+  autocomplete(prefix, limit = Infinity) {
+    prefix = prefix.toLowerCase();
     let node = this.findPrefix(prefix);
     // cannot find any nodes
     if (!node) {
       return [];
     }
     let results = [];
-    this.collectWords(node, prefix, results);
+    this.collectWords(node, prefix, results, limit);
     return results;
   }
 }
 
-export { Trie };
+// Classic scripts work when the playground is opened directly from disk.
+if (typeof module !== 'undefined') module.exports = { Trie };

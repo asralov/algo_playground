@@ -23,6 +23,10 @@ class Queue {
   isEmpty() {
     return this.items.length === 0;
   }
+
+  peek() {
+    return this.isEmpty() ? [false, null] : [true, this.items[0]];
+  }
 }
 
-export { Queue };
+if (typeof module !== 'undefined') module.exports = { Queue };

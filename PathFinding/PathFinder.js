@@ -62,12 +62,12 @@ function DFS(maze, start, goal) {
 
   while (stack.length > 0) {
     const current = stack.pop();
-    visitedOrder.push(current);
     if (visited.has(key(current))) {
       continue;
     }
 
     visited.add(key(current));
+    visitedOrder.push(current);
 
     if (current.row === goal.row && current.col === goal.col) {
       break;
@@ -83,7 +83,7 @@ function DFS(maze, start, goal) {
     }
   }
 
-  if (!parent.has(key(goal))) {
+  if (!visited.has(key(goal))) {
     return { visitedOrder, path: [] };
   }
   const path = reconstructPath(parent, start, goal);
@@ -95,6 +95,8 @@ function BFS(maze, start, goal) {
   const visited = new Set();
   const parent = new Map();
   const visitedOrder = [];
+  const events = [];
+  const depth = new Map([[key(start), 0]]);
 
   queue.push(start);
   visited.add(key(start));
@@ -102,6 +104,8 @@ function BFS(maze, start, goal) {
   while (queue.length > 0) {
     const current = queue.shift();
     visitedOrder.push(current);
+    const event = { current, depth: depth.get(key(current)), discovered: [] };
+    events.push(event);
     if (current.row === goal.row && current.col === goal.col) {
       break;
     }
@@ -113,14 +117,16 @@ function BFS(maze, start, goal) {
         visited.add(key(neighbor));
         parent.set(key(neighbor), current);
         queue.push(neighbor);
+        depth.set(key(neighbor), event.depth + 1);
+        event.discovered.push({ ...neighbor, from: current });
       }
     }
   }
-  if (!parent.has(key(goal))) {
-    return { visitedOrder, path: [] };
+  if (!visited.has(key(goal))) {
+    return { visitedOrder, path: [], events };
   }
   const path = reconstructPath(parent, start, goal);
-  return { visitedOrder, path };
+  return { visitedOrder, path, events };
 }
 function manhattan(a, b) {
   return Math.abs(a.row - b.row) + Math.abs(a.col - b.col);
@@ -132,6 +138,7 @@ function Astar(maze, start, goal) {
   const gScore = new Map(); // cost from start
   const fScore = new Map(); // g + heuristic
   const visitedOrder = []; // for visualization
+  const events = [];
 
   // initialize
   gScore.set(key(start), 0);
@@ -143,11 +150,13 @@ function Astar(maze, start, goal) {
     openSet.sort((a, b) => a.f - b.f);
     const current = openSet.shift();
     visitedOrder.push(current);
+    const event = { current, depth: gScore.get(key(current)), priority: current.f, discovered: [] };
+    events.push(event);
 
     // reached goal
     if (current.row === goal.row && current.col === goal.col) {
       const path = reconstructPath(cameFrom, start, goal);
-      return { visitedOrder, path };
+      return { visitedOrder, path, events };
     }
 
     const neighbors = getNeighbors(maze, current.row, current.col);
@@ -161,17 +170,20 @@ function Astar(maze, start, goal) {
         fScore.set(key(neighbor), tentative_gScore + manhattan(neighbor, goal));
 
         // check if neighbor is already in openSet
-        if (
-          !openSet.some((n) => n.row === neighbor.row && n.col === neighbor.col)
-        ) {
+        const existing = openSet.find((n) => n.row === neighbor.row && n.col === neighbor.col);
+        if (existing) {
+          existing.f = fScore.get(key(neighbor));
+        } else {
           openSet.push({ ...neighbor, f: fScore.get(key(neighbor)) });
+          event.discovered.push({ ...neighbor, from: current });
         }
       }
     }
   }
 
   // no path found
-  return { visitedOrder, path: [] };
+  return { visitedOrder, path: [], events };
 }
 
-export { DFS, BFS, Astar };
+// Also usable directly from a local HTML file, without module-fetch restrictions.
+if (typeof module !== 'undefined') module.exports = { DFS, BFS, Astar };

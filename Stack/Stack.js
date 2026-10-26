@@ -23,6 +23,10 @@ class Stack {
   empty() {
     return this.stack.length === 0;
   }
+
+  peek() {
+    return this.empty() ? [false, null] : [true, this.stack[this.stack.length - 1]];
+  }
 }
 
-export { Stack };
+if (typeof module !== 'undefined') module.exports = { Stack };
