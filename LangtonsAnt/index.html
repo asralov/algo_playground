@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Langton’s Ant · Algo Playground</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="simulation.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main>
+    <a class="back" href="../index.html">← Algo Playground</a>
+    <header><span class="eyebrow">CHAOS &amp; EMERGENCE</span><h1>A little ant. An unexpected order.</h1>
+      <p>One ant, two colors, a world without edges. Watch simple rules build something surprising.</p></header>
+    <div class="workspace">
+      <aside class="panel">
+        <h2>Langton’s Ant</h2>
+        <label for="mode">World geometry</label>
+        <select id="mode"><option value="square">Classic · square grid</option><option value="hex">Hexagonal · 60° variant</option></select>
+        <p id="rules" class="hint">Light tile: turn right 90°. Green tile: turn left 90°. Flip the tile, then move forward.</p>
+        <form id="run-form">
+          <label for="steps">Steps to simulate</label>
+          <input id="steps" type="number" min="1" max="1000000" step="1" value="12000" required>
+          <p class="hint">Run this many additional steps (up to 1,000,000 per run).</p>
+          <button id="run" type="submit">Simulate steps</button>
+        </form>
+        <div class="button-row"><button class="secondary" id="pause" disabled>Pause</button><button class="secondary" id="step">+1 step</button><button class="secondary" id="reset">Reset</button></div>
+        <label for="speed">Speed <output id="speed-value">8 steps/s</output></label>
+        <input id="speed" type="range" min="0" max="1000" step="1" value="226">
+        <p class="hint" id="playback-hint">Slow playback shows every turn. High speeds compress multiple steps into each frame.</p>
+        <button class="preset" id="highway">Explore the highway · 12,000 steps →</button>
+        <p class="hint">The highway preset starts a fresh classic world.</p>
+      </aside>
+      <section class="world" aria-label="Ant simulation">
+        <div class="world-top"><span class="world-label">THE INFINITE GARDEN</span><span id="geometry">CLASSIC WORLD</span></div>
+        <canvas id="world" aria-label="Isometric ant simulation. Drag to pan and scroll to zoom." tabindex="0">Your browser needs canvas support to display this simulation.</canvas>
+        <div class="view-controls"><label><input type="checkbox" id="follow" checked> Follow ant</label><button class="secondary" id="zoom-out" aria-label="Zoom out">−</button><button class="secondary" id="zoom-in" aria-label="Zoom in">+</button><button class="secondary" id="home">Center ant</button></div>
+        <div class="world-bottom"><span><i class="dot"></i> Flipped tile <i class="dot ant-dot"></i> Ant</span><span>Drag to pan · scroll to zoom</span></div>
+      </section>
+    </div>
+    <div class="stats"><div><span>STEPS TAKEN</span><strong id="count">0</strong></div><div><span>GREEN TILES</span><strong id="tiles">0</strong></div><div><span>ANT POSITION</span><strong id="position">0, 0</strong></div><div><span>SIMULATION</span><strong id="status" role="status">Ready</strong></div></div>
+    <section class="explanation"><span class="eyebrow">WHEN CHAOS FINDS A RHYTHM</span><h2>Predictable rules. Surprising patterns.</h2><p>Langton’s Ant is deterministic: the same starting world always produces the same path. On a blank square grid, its wandering looks chaotic for around 10,000 steps. Then a repeating 104-step pattern appears, building a diagonal “highway” that continues indefinitely.</p><p>The hexagonal world explores a different rule: turn 60° right on light tiles and 60° left on green tiles. It is a variant, so the classic highway behavior does not apply. Both worlds use an unbounded grid; only the camera’s visible area is drawn.</p></section>
+  </main>
+</body>
+</html>
