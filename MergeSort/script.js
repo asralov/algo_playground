@@ -1,116 +1,33 @@
-const treeContainer = document.getElementById('tree-container');
-const startBtn = document.getElementById('startBtn');
-const arrayInput = document.getElementById('arrayInput');
-const resetBtn = document.getElementById('resetBtn');
-const speedSlider = document.getElementById('speedSlider');
-
-let history = []; 
-let isPlaying = false;
-
-async function startVisualization() {
-    const input = arrayInput.value.split(',')
-        .map(n => parseInt(n.trim()))
-        .filter(n => !isNaN(n) && n >= 10 && n <= 100);
-    
-    if (input.length < 2) {
-        alert("Please enter at least 2 numbers (10-100) separated by commas.");
-        return;
-    }
-    
-    startBtn.disabled = true;
-    treeContainer.innerHTML = "";
-    history = [];
-    isPlaying = true;
-
-    let currentState = []; 
-    const record = () => history.push(JSON.parse(JSON.stringify(currentState)));
-
-    async function mergeSort(arr, level) {
-        if (!currentState[level]) currentState[level] = [];
-        
-        const node = { data: [...arr], status: 'splitting', activeIdx: -1 };
-        currentState[level].push(node);
-
-        if (arr.length <= 1) {
-            node.status = 'sorted';
-            return arr;
-        }
-
-        const mid = Math.floor(arr.length / 2);
-        record(); // Record the split happening
-
-        const leftPromise = mergeSort(arr.slice(0, mid), level + 1);
-        const rightPromise = mergeSort(arr.slice(mid), level + 1);
-
-        const [left, right] = await Promise.all([leftPromise, rightPromise]);
-
-        node.status = 'merging';
-        record();
-
-        let result = [];
-        let i = 0, j = 0;
-        while (i < left.length && j < right.length) {
-            node.activeIdx = result.length; 
-            if (left[i] < right[j]) result.push(left[i++]);
-            else result.push(right[j++]);
-            
-            node.data = [...result, ...left.slice(i), ...right.slice(j)];
-            record();
-        }
-
-        node.data = [...result, ...left.slice(i), ...right.slice(j)];
-        node.activeIdx = -1;
-        node.status = 'sorted';
-        record();
-        return node.data;
-    }
-
-    await mergeSort(input, 0);
-
-    for (let i = 0; i < history.length; i++) {
-        if (!isPlaying) break;
-        render(history[i]);
-        // Speed slider logic: higher value = lower delay
-        const delay = 2100 - parseInt(speedSlider.value);
-        await new Promise(r => setTimeout(r, delay));
-    }
-    
-    if (isPlaying) {
-        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#2e7d32', '#4caf50', '#ffffff'] });
-    }
-    
-    startBtn.disabled = false;
-    isPlaying = false;
+const $=id=>document.getElementById(id),stage=$('tree-container');
+let model,index=0,playing=false,elapsed=0,last=0,groups=[],paths=[],positions=[],motions=[];
+const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+const duration=()=>reduced.matches?0:Math.min(850,Number($('speedSlider').value)*.8);
+function token(item,blank=false){const el=document.createElement('span');el.className='token'+(blank?' blank':'');el.textContent=blank?'·':item.value;if(!blank){const small=document.createElement('small');small.textContent=`#${item.id+1}`;el.append(small);}return el;}
+function cancelMotions(){motions.forEach(m=>m.cancel());motions=[];stage.querySelectorAll('.ghost').forEach(e=>e.remove());}
+function animate(el,frames){if(!duration())return;const motion=el.animate(frames,{duration:duration(),easing:'cubic-bezier(.22,.75,.25,1)',fill:'both'});motions.push(motion);motion.finished.then(()=>motion.cancel()).catch(()=>{});return motion;}
+function build(values){
+  playing=false;elapsed=0;cancelMotions();index=0;model=mergeFrames(values);stage.replaceChildren();groups=[];paths=[];positions=[];
+  const width=Math.max(560,values.length*72+50),height=Math.max(...model.nodes.map(n=>n.depth))*116+140;stage.style.width=`${width}px`;stage.style.height=`${height}px`;
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('connectors');svg.setAttribute('width',width);svg.setAttribute('height',height);stage.append(svg);
+  model.nodes.forEach(n=>{const w=n.items.length*33+11,x=(n.start+n.items.length/2)*72+(width-values.length*72)/2-w/2,y=42+n.depth*116;positions[n.id]={x,y,w};const g=document.createElement('div');g.className='group';g.style.left=`${x}px`;g.style.top=`${y}px`;g.style.width=`${w}px`;g.setAttribute('aria-label',`Group of ${n.items.length} values at depth ${n.depth}`);stage.append(g);groups[n.id]=g;});
+  model.nodes.forEach(n=>{if(n.parent===null)return;const p=positions[n.parent],c=positions[n.id],line=document.createElementNS('http://www.w3.org/2000/svg','path');line.setAttribute('class','connector');line.setAttribute('d',`M ${p.x+p.w/2} ${p.y+60} C ${p.x+p.w/2} ${p.y+88}, ${c.x+c.w/2} ${c.y-25}, ${c.x+c.w/2} ${c.y}`);svg.append(line);paths[n.id]=line;});
+  $('count').textContent=values.length;$('timeline').max=model.frames.length-1;$('arrayInput').value=values.join(', ');$('error').textContent='';$('tree-scroll').scrollLeft=Math.max(0,(width-$('tree-scroll').clientWidth)/2);$('tree-scroll').scrollTop=0;render();
 }
-
-function render(state) {
-    treeContainer.innerHTML = "";
-    state.forEach(level => {
-        const levelDiv = document.createElement('div');
-        levelDiv.className = 'level';
-        
-        level.forEach(node => {
-            const block = document.createElement('div');
-            block.className = `array-block ${node.status}`;
-            
-            node.data.forEach((val, idx) => {
-                const cell = document.createElement('div');
-                cell.className = 'num-cell';
-                if (idx === node.activeIdx) cell.classList.add('active-cell');
-                cell.innerText = val;
-                block.appendChild(cell);
-            });
-            levelDiv.appendChild(block);
-        });
-        treeContainer.appendChild(levelDiv);
-    });
+function render(smooth=false){
+  cancelMotions();const f=model.frames[index],previous=index?model.frames[index-1]:null;
+  model.nodes.forEach(n=>{const state=f.state[n.id],g=groups[n.id];g.hidden=!state.visible;g.className=`group ${state.status}${f.active===n.id?' active':''}`;g.replaceChildren();const label=document.createElement('span');label.className='group-label';label.textContent=n.parent===null?'ORIGINAL → FINAL':`${n.items.length===1?'BASE CASE':n.items.length+' VALUES'}`;g.append(label);for(let i=0;i<n.items.length;i++)g.append(token(state.data[i],!state.data[i]));if(paths[n.id])paths[n.id].style.display=state.visible?'':'none';
+    if(smooth&&state.visible&&!previous?.state[n.id].visible&&n.parent!==null){const p=positions[n.parent],c=positions[n.id];animate(g,[{transform:`translate(${p.x+p.w/2-c.x-c.w/2}px,${p.y-c.y}px) scale(.65)`,opacity:0},{transform:'translate(0,0) scale(1)',opacity:1}]);}
+  });
+  $('left').replaceChildren();$('right').replaceChildren();$('output').replaceChildren();
+  if(f.detail){const d=f.detail;for(const [side,used] of [['left',d.i],['right',d.j]])d[side].forEach((item,i)=>{const el=token(item);if(i<used)el.classList.add('consumed');else if(i===used)el.classList.add('candidate');$(side).append(el);});const total=d.left.length+d.right.length;for(let i=0;i<total;i++)$('output').append(token(d.output[i],!d.output[i]));$('merge-hint').textContent=`${d.i} of ${d.left.length} left values and ${d.j} of ${d.right.length} right values consumed. Faded values are already in the output.`;
+    if(f.phase==='Compare'){const n=model.nodes[f.active];[[n.left,d.i],[n.right,d.j]].forEach(([id,i])=>groups[id].querySelectorAll('.token')[i]?.classList.add('candidate'));}
+  }else{$('merge-hint').textContent=f.phase==='Sorted'?'The final output is sorted. Original-position labels reveal that equal values kept their arrival order.':'Divide first. The workbench will show two sorted input groups and their output during each merge.';if(f.phase==='Sorted')f.state[0].data.forEach(item=>$('output').append(token(item)));}
+  if(smooth&&f.move){const m=f.move,source=groups[m.from].querySelectorAll('.token')[m.fromIndex],destination=groups[m.to].querySelectorAll('.token')[m.toIndex];if(source&&destination){const root=stage.getBoundingClientRect(),a=source.getBoundingClientRect(),b=destination.getBoundingClientRect(),ghost=token(m.item);ghost.classList.add('ghost');ghost.style.left=`${a.left-root.left}px`;ghost.style.top=`${a.top-root.top}px`;stage.append(ghost);const motion=animate(ghost,[{transform:'translate(0,0)',opacity:1},{transform:`translate(${b.left-a.left}px,${b.top-a.top}px)`,opacity:1}]);if(motion){destination.style.opacity=0;motion.finished.then(()=>{ghost.remove();destination.style.opacity='';}).catch(()=>{ghost.remove();destination.style.opacity='';});}else ghost.remove();}}
+  $('phase').textContent=f.phase;$('status').textContent=f.text;$('splits').textContent=f.splits;$('comparisons').textContent=f.comparisons;$('writes').textContent=f.writes;$('timeline').value=index;$('progress').textContent=`${index} / ${model.frames.length-1}`;controls();
 }
-
-resetBtn.addEventListener('click', () => {
-    isPlaying = false;
-    treeContainer.innerHTML = "";
-    startBtn.disabled = false;
-    history = [];
-});
-
-startBtn.addEventListener('click', startVisualization);
+function controls(){$('startBtn').textContent=playing?'Ⅱ Pause':index===model.frames.length-1?'↻ Replay':'▶ Play';$('back').disabled=index===0;$('next').disabled=index===model.frames.length-1;}
+function seek(i,smooth=false){playing=false;elapsed=0;index=Math.max(0,Math.min(model.frames.length-1,i));render(smooth);}
+$('startBtn').onclick=()=>{if(index===model.frames.length-1){index=0;render();}playing=!playing;last=performance.now();motions.forEach(m=>{if(m.playState==='running'&&!playing)m.pause();else if(m.playState==='paused'&&playing)m.play();});controls();};$('back').onclick=()=>seek(index-1);$('next').onclick=()=>seek(index+1,true);$('resetBtn').onclick=()=>seek(0);$('timeline').oninput=()=>seek(Number($('timeline').value));$('speedSlider').oninput=()=>{$('speed-value').textContent=`${$('speedSlider').value} ms`;elapsed=0;};
+$('input-form').onsubmit=e=>{e.preventDefault();const raw=$('arrayInput').value.trim(),tokens=raw.split(/[\s,]+/),values=tokens.map(Number);if(!raw||values.length<2||values.length>16||tokens.some(t=>!/^\d+$/.test(t))||values.some(v=>!Number.isInteger(v)||v<1||v>99)){$('error').textContent='Enter 2–16 whole numbers from 1 to 99. No values were changed.';return;}build(values);};$('random').onclick=()=>build(Array.from({length:8},()=>1+Math.floor(Math.random()*99)));$('duplicates').onclick=()=>build([40,20,40,10,20,40,10,20]);
+function frame(time){if(playing){elapsed+=Math.min(time-last,100);if(elapsed>=Number($('speedSlider').value)){elapsed=0;index++;if(index===model.frames.length-1)playing=false;render(true);}}last=time;requestAnimationFrame(frame);}
+document.addEventListener('visibilitychange',()=>last=performance.now());build([45,12,89,33,67,21,7,54]);requestAnimationFrame(frame);

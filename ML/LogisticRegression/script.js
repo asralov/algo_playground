@@ -1,209 +1,28 @@
-const canvas = document.getElementById('plotCanvas');
-const ctx = canvas.getContext('2d');
-const trainBtn = document.getElementById('trainBtn');
-const addRandomBtn = document.getElementById('addRandomBtn');
-const resetBtn = document.getElementById('resetBtn');
-const lrInput = document.getElementById('lrInput');
-const epochsInput = document.getElementById('epochsInput');
-const speedSlider = document.getElementById('speedSlider');
-const epochCount = document.getElementById('epochCount');
-const lossVal = document.getElementById('lossVal');
-const timeVal = document.getElementById('timeVal');
-
-let points = [];
-// Stabilized Initial weights: ensures the line starts visible and horizontal on-screen
-let w1 = 0.01;
-let w2 = -1.0;
-let bias = 0.5;
-let isPlaying = false;
-
-// Sigmoid Activation Function
-function sigmoid(z) {
-    return 1 / (1 + Math.exp(-z));
+const $=id=>document.getElementById(id),px=x=>55+630*x,py=y=>400-375*y;
+let points=[],w={x:0,y:0,b:0},epoch=0,target=0,running=false,credit=0,last=0,history=[];
+const threshold=()=>Number($('threshold').value);
+function el(tag,attrs,parent,text){const n=document.createElementNS('http://www.w3.org/2000/svg',tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));if(text!==undefined)n.textContent=text;parent.append(n);return n;}
+function status(phase,text){$('phase').textContent=phase;$('status').textContent=text;}
+function controls(){['trainBtn','step','addRandomBtn','preset','lrInput','epochsInput','pointX','pointY','addPoint','undo','classSelect','editMode'].forEach(id=>$(id).disabled=running);$('pause').disabled=target<=epoch;$('pause').textContent=running?'Pause':'Resume';}
+for(let i=0;i<=5;i++){const v=i/5;el('line',{x1:px(v),x2:px(v),y1:25,y2:400},$('axes'));el('line',{x1:55,x2:685,y1:py(v),y2:py(v)},$('axes'));el('text',{x:px(v),y:422,'text-anchor':'middle'},$('axes'),v.toFixed(1));el('text',{x:44,y:py(v)+4,'text-anchor':'end'},$('axes'),v.toFixed(1));}el('text',{x:350,y:448},$('axes'),'X₁ · feature 1');el('text',{x:10,y:17},$('axes'),'X₂ · feature 2');
+const tiles=[];for(let r=0;r<20;r++)for(let c=0;c<30;c++){const x=(c+.5)/30,y=(r+.5)/20;tiles.push({x,y,el:el('rect',{x:px(c/30),y:py((r+1)/20),width:21.2,height:19},$('heatmap'))});}
+function plot(){
+  $('heatmap').style.display=$('showMap').checked?'':'none';
+  if($('showMap').checked)for(const t of tiles){const p=Logistic.predict(t,w),a=p<.5?[219,163,135]:[238,241,223],b=p<.5?[238,241,223]:[140,181,132],mix=p<.5?p*2:(p-.5)*2;t.el.setAttribute('fill',`rgb(${a.map((v,i)=>Math.round(v+(b[i]-v)*mix)).join(',')})`);}
+  const boundary=Logistic.boundary(w,threshold());$('boundary').setAttribute('d',boundary?`M ${px(boundary[0].x)} ${py(boundary[0].y)} L ${px(boundary[1].x)} ${py(boundary[1].y)}`:'');$('boundary-note').textContent=boundary?`Purple line: P(class 1) = ${threshold().toFixed(2)}.`:Math.abs(w.x)+Math.abs(w.y)<1e-12?'The model currently assigns the same probability everywhere; no unique boundary exists.':'The decision boundary lies outside the plotted area at this threshold.';
+  $('points').replaceChildren();points.forEach((p,i)=>{const probability=Logistic.predict(p,w),wrong=Number(probability>=threshold())!==p.label,attrs={class:`point-shape point${p.label}${wrong&&$('showErrors').checked?' misclassified':''}`,'data-index':i};const n=p.label===1?el('circle',{...attrs,cx:px(p.x),cy:py(p.y),r:6},$('points')):el('rect',{...attrs,x:px(p.x)-5.5,y:py(p.y)-5.5,width:11,height:11,rx:1},$('points'));el('title',{},n,`Class ${p.label}, X₁=${p.x.toFixed(2)}, X₂=${p.y.toFixed(2)}; P(1)=${probability.toFixed(3)}`);});
+  const x=Number($('probeX').value),y=Number($('probeY').value),p=Logistic.predict({x,y},w);$('prediction').textContent=`P(class 1) = ${(p*100).toFixed(1)}% → class ${Number(p>=threshold())}`;$('probe-details').textContent=`Probe: X₁ = ${x.toFixed(2)}, X₂ = ${y.toFixed(2)}. Gold cross marks this location.`;$('probe-marker').replaceChildren();el('path',{d:`M ${px(x)-9} ${py(y)} H ${px(x)+9} M ${px(x)} ${py(y)-9} V ${py(y)+9}`,stroke:'#b3882c','stroke-width':3},$('probe-marker'));
 }
-
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 1. Draw Clean Grid Lines
-    ctx.strokeStyle = '#eee';
-    ctx.lineWidth = 1;
-    for (let i = 50; i < canvas.width; i += 50) {
-        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
-    }
-
-    // 2. Draw Smooth Decision Boundary Line (w1*x_norm + w2*y_norm + bias = 0)
-    // Upgraded calculation: protects against dividing by zero (vertical line errors)
-    ctx.beginPath();
-    let x1, y1, x2, y2;
-
-    if (Math.abs(w2) > Math.abs(w1)) {
-        // Line is closer to horizontal: calculate Y based on X edges
-        x1 = 0;
-        y1 = ((-w1 * (x1 / canvas.width) - bias) / w2) * canvas.height;
-        x2 = canvas.width;
-        y2 = ((-w1 * (x2 / canvas.width) - bias) / w2) * canvas.height;
-    } else {
-        // Line is closer to vertical: calculate X based on Y edges to prevent infinite jumps
-        y1 = 0;
-        x1 = ((-w2 * (y1 / canvas.height) - bias) / w1) * canvas.width;
-        y2 = canvas.height;
-        x2 = ((-w2 * (y2 / canvas.height) - bias) / w1) * canvas.width;
-    }
-
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.strokeStyle = '#5c6bc0'; // Sleek purple line
-    ctx.lineWidth = 3.5;
-    ctx.stroke();
-
-    // 3. Draw Elements (Class 0 = Red, Class 1 = Green)
-    points.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-        if (p.label === 1) {
-            ctx.fillStyle = '#4caf50';
-            ctx.strokeStyle = '#2e7d32';
-        } else {
-            ctx.fillStyle = '#e57373';
-            ctx.strokeStyle = '#c62828';
-        }
-        ctx.fill();
-        ctx.stroke();
-    });
-}
-
-function toggleControls(disable) {
-    trainBtn.disabled = disable;
-    addRandomBtn.disabled = disable;
-    lrInput.disabled = disable;
-    epochsInput.disabled = disable;
-    speedSlider.disabled = disable;
-    document.querySelectorAll('input[name="classType"]').forEach(r => r.disabled = disable);
-}
-
-canvas.addEventListener('click', (event) => {
-    if (isPlaying) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    
-    const selectedLabel = parseInt(document.querySelector('input[name="classType"]:checked').value);
-    
-    points.push({ x, y, label: selectedLabel });
-    draw();
-});
-
-addRandomBtn.addEventListener('click', () => {
-    if (isPlaying) return;
-    
-    // Cluster 0 (Red) - Top Left
-    for (let i = 0; i < 6; i++) {
-        points.push({
-            x: Math.random() * 200 + 60,
-            y: Math.random() * 150 + 40,
-            label: 0
-        });
-    }
-
-    // Cluster 1 (Green) - Bottom Right
-    for (let i = 0; i < 6; i++) {
-        points.push({
-            x: Math.random() * 200 + 340,
-            y: Math.random() * 150 + 210,
-            label: 1
-        });
-    }
-    draw();
-});
-
-resetBtn.addEventListener('click', () => {
-    points = [];
-    w1 = 0.01;
-    w2 = -1.0;
-    bias = 0.5;
-    epochCount.innerText = "0";
-    lossVal.innerText = "0.0000";
-    timeVal.innerText = "0.00s";
-    isPlaying = false;
-    toggleControls(false);
-    draw();
-});
-
-trainBtn.addEventListener('click', async () => {
-    const hasClass0 = points.some(p => p.label === 0);
-    const hasClass1 = points.some(p => p.label === 1);
-
-    if (!hasClass0 || !hasClass1) {
-        alert("Please add at least one Class 0 (Red) and one Class 1 (Green) point!");
-        return;
-    }
-
-    // --- RESET WEIGHTS HERE SO THE SIMULATION STARTS OVER WITH THE SAME POINTS ---
-    w1 = 0.01;
-    w2 = -1.0;
-    bias = 0.5;
-    // ----------------------------------------------------------------------------
-
-    isPlaying = true;
-    toggleControls(true);
-
-    const learningRate = parseFloat(lrInput.value);
-    const epochs = parseInt(epochsInput.value);
-    const startTime = performance.now();
-
-    for (let epoch = 1; epoch <= epochs; epoch++) {
-        if (!isPlaying) break;
-
-        let totalLoss = 0;
-        let gradW1 = 0;
-        let gradW2 = 0;
-        let gradBias = 0;
-
-        for (let p of points) {
-            const x_norm = p.x / canvas.width;
-            const y_norm = p.y / canvas.height;
-
-            const z = w1 * x_norm + w2 * y_norm + bias;
-            const prediction = sigmoid(z);
-
-            // Compute Binary Cross-Entropy Loss
-            const predClipped = Math.max(1e-15, Math.min(1 - 1e-15, prediction));
-            totalLoss += -(p.label * Math.log(predClipped) + (1 - p.label) * Math.log(1 - predClipped));
-
-            // Accumulate Gradients
-            const error = prediction - p.label;
-            gradW1 += error * x_norm;
-            gradW2 += error * y_norm;
-            gradBias += error;
-        }
-
-        totalLoss /= points.length;
-        gradW1 /= points.length;
-        gradW2 /= points.length;
-        gradBias /= points.length;
-
-        // Apply gradient descent changes
-        w1 -= learningRate * gradW1;
-        w2 -= learningRate * gradW2;
-        bias -= learningRate * gradBias;
-
-        // UI Updates
-        epochCount.innerText = epoch;
-        lossVal.innerText = totalLoss.toFixed(4);
-        
-        let timeElapsed = (performance.now() - startTime) / 1000;
-        timeVal.innerText = timeElapsed.toFixed(2) + "s";
-
-        draw();
-
-        const delay = parseInt(speedSlider.value);
-        await new Promise(r => setTimeout(r, delay));
-    }
-
-    isPlaying = false;
-    toggleControls(false);
-});
-// Run Initial View
-draw();
+function lossChart(){const chart=$('loss-chart');chart.replaceChildren();const max=Math.max(.001,...history.map(h=>h.loss)),end=Math.max(1,epoch);for(let i=0;i<=4;i++){const y=185-i*40;el('line',{x1:60,x2:575,y1:y,y2:y,stroke:'#e3ebdc'},chart);el('text',{x:54,y:y+4,'text-anchor':'end'},chart,(max*i/4).toFixed(3));}el('text',{x:60,y:207},chart,'0');el('text',{x:575,y:207,'text-anchor':'end'},chart,epoch);el('text',{x:270,y:226},chart,'Epoch');el('text',{x:10,y:15},chart,'BCE loss');const stride=Math.max(1,Math.ceil(history.length/500)),sample=history.filter((_,i)=>i%stride===0||i===history.length-1);if(sample.length)el('path',{d:sample.map((h,i)=>`${i?'L':'M'} ${60+515*h.epoch/end} ${185-160*h.loss/max}`).join(' '),stroke:'#4b8e50','stroke-width':2,fill:'none'},chart);}
+function render(){const stats=Logistic.metrics(points,w,threshold());$('equation').textContent=`z = ${w.x.toFixed(3)}X₁ ${w.y<0?'−':'+'} ${Math.abs(w.y).toFixed(3)}X₂ ${w.b<0?'−':'+'} ${Math.abs(w.b).toFixed(3)}`;$('epochCount').textContent=`${epoch} / ${points.length}`;$('lossVal').textContent=stats.loss===null?'—':stats.loss.toFixed(4);$('accuracy').textContent=stats.accuracy===null?'—':`${(stats.accuracy*100).toFixed(1)}%`;const ones=points.filter(p=>p.label===1).length;$('class-count').textContent=`${points.length-ones} / ${ones}`;['tn','fp','fn','tp'].forEach(id=>$(id).textContent=stats[id]);$('threshold-value').textContent=threshold().toFixed(2);plot();lossChart();controls();}
+function resetModel(){running=false;epoch=0;target=0;credit=0;w={x:0,y:0,b:0};history=points.length?[{epoch:0,loss:Logistic.metrics(points,w).loss}]:[];status('Ready','Weights reset. Initial probabilities are 50% everywhere. Train or step one epoch.');render();}
+function valid(){if(!points.some(p=>p.label===0)||!points.some(p=>p.label===1)){status('Two classes needed','Add at least one point from each class before training.');return false;}return $('lrInput').reportValidity()&&$('epochsInput').reportValidity();}
+function step(){const next=Logistic.step(points,w,Number($('lrInput').value)),loss=Logistic.metrics(points,next).loss;if(!Number.isFinite(loss)||loss>1e6){running=false;target=epoch;status('Stopped','Loss became too large. Lower the learning rate and reset weights.');return false;}w=next;epoch++;history.push({epoch,loss});if(history.length>20000)history=history.filter((_,i)=>i%2===0||i===history.length-1);return true;}
+$('train-form').onsubmit=e=>{e.preventDefault();if(!valid())return;target=epoch+Number($('epochsInput').value);running=true;credit=0;last=performance.now();status('Training','Updating weights to reduce binary cross-entropy.');controls();};$('pause').onclick=()=>{running=!running;credit=0;last=performance.now();status(running?'Training':'Paused',running?'Continuing from the current weights.':'Training paused. Inspect probabilities, step once, or resume.');controls();};$('step').onclick=()=>{if(!running&&valid()){if(step())status('Stepped',`Completed epoch ${epoch}; metrics reflect the new weights.`);render();}};
+$('resetModel').onclick=resetModel;$('resetBtn').onclick=()=>{points=[];resetModel();status('Empty','Choose a class and add points on the plot or with the numeric inputs.');};
+function add(x,y){if(running)return;if(points.length>=100){status('Point limit','Remove a point before adding another (maximum 100).');return;}points.push({x,y,label:Number($('classSelect').value)});resetModel();status('Data changed','Point added. Training history and weights were reset.');}
+$('point-form').onsubmit=e=>{e.preventDefault();const x=Number($('pointX').value),y=Number($('pointY').value);if(Number.isFinite(x)&&Number.isFinite(y)&&x>=0&&x<=1&&y>=0&&y<=1)add(x,y);};$('undo').onclick=()=>{if(!running){points.pop();resetModel();}};
+$('plot').onclick=e=>{if(running)return;const mode=$('editMode').value;if(mode!=='add'){const hit=e.target.closest('[data-index]');if(hit){const i=Number(hit.dataset.index);if(mode==='remove')points.splice(i,1);else points[i].label=Number($('classSelect').value);resetModel();}return;}const p=$('plot').createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform($('plot').getScreenCTM().inverse()),x=(q.x-55)/630,y=(400-q.y)/375;if(x>=0&&x<=1&&y>=0&&y<=1)add(x,y);};
+function load(){const kind=$('preset').value;points=[];if(kind==='xor'){for(const [x,y,label] of [[.2,.2,0],[.8,.8,0],[.2,.8,1],[.8,.2,1]])for(let i=0;i<6;i++)points.push({x:x+(i-2.5)*.015,y:y+(i-2.5)*.015,label});}else for(let label=0;label<2;label++)for(let i=0;i<12;i++){const center=kind==='overlap'?(label?.6:.4):(label?.76:.24),spread=kind==='overlap'?.65:.28;points.push({x:Math.max(.03,Math.min(.97,center+(Math.random()-.5)*spread)),y:Math.max(.03,Math.min(.97,center+(Math.random()-.5)*spread)),label});}$('dataset-note').textContent=kind==='xor'?'XOR cannot be perfectly separated by a straight boundary. More epochs alone will not fix that.':kind==='overlap'?'Overlapping classes illustrate uncertainty and unavoidable classification errors.':'Two separated clusters can be divided by a straight line.';resetModel();}
+$('addRandomBtn').onclick=load;$('speedSlider').oninput=()=>{$('speed-value').textContent=`${$('speedSlider').value} epochs/s`;};$('threshold').oninput=render;['showMap','showErrors'].forEach(id=>$(id).onchange=plot);['probeX','probeY'].forEach(id=>$(id).oninput=plot);
+function frame(now){if(running){credit+=Math.min((now-last)/1000,.1)*Number($('speedSlider').value);let n=Math.min(Math.floor(credit),target-epoch);credit-=n;const changed=n>0;while(n-->0&&running)if(!step())break;if(running&&epoch>=target){running=false;status('Run complete',`Finished ${epoch} total epochs. Train again to continue, or explore the threshold.`);}if(changed)render();}last=now;requestAnimationFrame(frame);}document.addEventListener('visibilitychange',()=>last=performance.now());load();requestAnimationFrame(frame);

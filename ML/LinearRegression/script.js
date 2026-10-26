@@ -1,169 +1,32 @@
-const canvas = document.getElementById('plotCanvas');
-const ctx = canvas.getContext('2d');
-const trainBtn = document.getElementById('trainBtn');
-const addRandomBtn = document.getElementById('addRandomBtn');
-const resetBtn = document.getElementById('resetBtn');
-const lrInput = document.getElementById('lrInput');
-const epochsInput = document.getElementById('epochsInput');
-const speedSlider = document.getElementById('speedSlider');
-const epochCount = document.getElementById('epochCount');
-const lossVal = document.getElementById('lossVal');
-const timeVal = document.getElementById('timeVal');
-
-let points = [];
-let m = 0.2; // Initial visible slope
-let b = 0.3; // Initial visible intercept
-let isPlaying = false; 
-
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw Grid
-    ctx.strokeStyle = '#eee';
-    ctx.lineWidth = 1;
-    for (let i = 50; i < canvas.width; i += 50) {
-        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
-    }
-
-    // Draw Points
-    points.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-        ctx.fillStyle = '#4caf50';
-        ctx.fill();
-        ctx.strokeStyle = '#2e7d32';
-        ctx.stroke();
-    });
-
-    // Draw Optimal Line
-    ctx.beginPath();
-    const x1 = 0;
-    const y1_norm = m * (x1 / canvas.width) + b;
-    const y1 = y1_norm * canvas.height;
-
-    const x2 = canvas.width;
-    const y2_norm = m * (x2 / canvas.width) + b;
-    const y2 = y2_norm * canvas.height;
-
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.strokeStyle = '#e57373';
-    ctx.lineWidth = 3;
-    ctx.stroke();
+const $=id=>document.getElementById(id);
+let points=[],m=0,b=.5,epoch=0,target=0,running=false,credit=0,last=0,history=[];
+const px=x=>55+630*x,py=y=>400-375*y,fmt=v=>v===null?'—':Math.abs(v)>=1000?v.toExponential(2):v.toFixed(4);
+function el(tag,attrs,parent,text){const node=document.createElementNS('http://www.w3.org/2000/svg',tag);Object.entries(attrs).forEach(([k,v])=>node.setAttribute(k,v));if(text!==undefined)node.textContent=text;parent.append(node);return node;}
+function status(phase,text){$('phase').textContent=phase;$('status').textContent=text;}
+function controls(){['trainBtn','step','addRandomBtn','preset','lrInput','epochsInput','addPoint','pointX','pointY','undo','editMode'].forEach(id=>$(id).disabled=running);$('pause').disabled=target<=epoch;$('pause').textContent=running?'Pause':'Resume';}
+for(let i=0;i<=5;i++){const v=i/5;el('line',{x1:px(v),x2:px(v),y1:25,y2:400},$('axes'));el('line',{x1:55,x2:685,y1:py(v),y2:py(v)},$('axes'));el('text',{x:px(v),y:422,'text-anchor':'middle'},$('axes'),v.toFixed(1));el('text',{x:44,y:py(v)+4,'text-anchor':'end'},$('axes'),v.toFixed(1));}el('text',{x:370,y:448},$('axes'),'X · input');el('text',{x:12,y:20},$('axes'),'Y · observed');
+function plot(){
+  $('points').replaceChildren();$('error-lines').replaceChildren();
+  points.forEach((p,i)=>{if($('residuals').checked)el('line',{x1:px(p.x),x2:px(p.x),y1:py(p.y),y2:py(m*p.x+b)},$('error-lines'));const dot=el('circle',{cx:px(p.x),cy:py(p.y),r:5.5,class:'point','data-index':i},$('points'));el('title',{},dot,`Point ${i+1}: x=${p.x.toFixed(3)}, y=${p.y.toFixed(3)}`);});
+  $('model-line').setAttribute('d',`M 55 ${py(b)} L 685 ${py(m+b)}`);
+  const fit=Regression.fit(points);$('reference-line').style.display=$('reference').checked&&fit?'':'none';if(fit)$('reference-line').setAttribute('d',`M 55 ${py(fit.b)} L 685 ${py(fit.m+fit.b)}`);
+  $('baseline').textContent=fit?`Exact-fit MSE: ${fmt(Regression.metrics(points,fit.m,fit.b).mse)}. Reference slope ${fmt(fit.m)}, intercept ${fmt(fit.b)}.`:points.length>=2?'Exact-fit reference unavailable: all X values are identical, so a unique slope cannot be determined.':'Add at least two points to compare with the exact fit.';
+  const x=Number($('predictX').value),y=m*x+b;$('prediction').textContent=`X = ${x.toFixed(2)} → ŷ = ${y.toFixed(4)}`;$('prediction-marker').replaceChildren();el('circle',{cx:px(x),cy:py(y),r:7,fill:'#e9be60',stroke:'#996f24','stroke-width':2},$('prediction-marker'));
 }
-
-// Disable/Enable control elements during processing
-function toggleControls(disable) {
-    trainBtn.disabled = disable;
-    addRandomBtn.disabled = disable;
-    lrInput.disabled = disable;
-    epochsInput.disabled = disable;
-    speedSlider.disabled = disable;
-}
-
-// Add point on canvas click
-canvas.addEventListener('click', (event) => {
-    if (isPlaying) return; // Prevent adding points while learning is running
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    
-    points.push({ x, y });
-    draw();
-});
-
-// Generate Random Data points
-addRandomBtn.addEventListener('click', () => {
-    for (let i = 0; i < 8; i++) {
-        points.push({
-            x: Math.random() * (canvas.width - 100) + 50,
-            y: Math.random() * (canvas.height - 100) + 50
-        });
-    }
-    draw();
-});
-
-// Clear canvas and states
-resetBtn.addEventListener('click', () => {
-    points = [];
-    m = 0.2;
-    b = 0.3;
-    epochCount.innerText = "0";
-    lossVal.innerText = "0.000";
-    timeVal.innerText = "0.00s";
-    isPlaying = false;
-    toggleControls(false);
-    trainBtn.disabled = false;
-    draw();
-});
-// Run Machine Learning Algorithm (Gradient Descent)
-trainBtn.addEventListener('click', async () => {
-    if (points.length < 2) {
-        alert("Plot at least 2 points to draw a line of best fit!");
-        return;
-    }
-    
-    // --- RESET WEIGHTS HERE SO THE SIMULATION STARTS OVER WITH THE SAME POINTS ---
-    m = 0.2; // Reset to initial visible slope
-    b = 0.3; // Reset to initial visible intercept
-    // ----------------------------------------------------------------------------
-
-    isPlaying = true;
-    toggleControls(true);
-    
-    const learningRate = parseFloat(lrInput.value);
-    const epochs = parseInt(epochsInput.value);
-    
-    const startTime = performance.now();
-
-    for (let epoch = 1; epoch <= epochs; epoch++) {
-        if (!isPlaying) break;
-
-        // Calculate Loss Function (Mean Squared Error)
-        let totalLoss = 0;
-        for (let p of points) {
-            const x_norm = p.x / canvas.width;
-            const y_norm = p.y / canvas.height;
-            let prediction = m * x_norm + b;
-            totalLoss += (y_norm - prediction) ** 2;
-        }
-        totalLoss /= points.length;
-
-        // Compute Gradients
-        let gradM = 0;
-        let gradB = 0;
-        for (let p of points) {
-            const x_norm = p.x / canvas.width;
-            const y_norm = p.y / canvas.height;
-            let prediction = m * x_norm + b;
-            let error = y_norm - prediction;
-            
-            gradM += -2 * x_norm * error;
-            gradB += -2 * error;
-        }
-        gradM /= points.length;
-        gradB /= points.length;
-
-        // 3. Update Weights
-        m -= learningRate * gradM;
-        b -= learningRate * gradB;
-
-        // 4. Update UI
-        epochCount.innerText = epoch;
-        lossVal.innerText = totalLoss.toFixed(4);
-        
-        let timeElapsed = (performance.now() - startTime) / 1000;
-        timeVal.innerText = timeElapsed.toFixed(2) + "s";
-        
-        draw();
-
-        const delay = parseInt(speedSlider.value);
-        await new Promise(r => setTimeout(r, delay));
-    }
-    
-    isPlaying = false;
-    toggleControls(false);
-});
-// Initial Render
-draw();
+function lossChart(){const chart=$('loss-chart');chart.replaceChildren();const max=Math.max(.0001,...history.map(h=>h.loss)),end=Math.max(1,epoch);for(let i=0;i<=4;i++){const y=185-i*40;el('line',{x1:65,x2:575,y1:y,y2:y,stroke:'#e3ebdc'},chart);el('text',{x:58,y:y+4,'text-anchor':'end'},chart,fmt(max*i/4));}el('text',{x:65,y:207},chart,'0');el('text',{x:575,y:207,'text-anchor':'end'},chart,epoch);el('text',{x:280,y:226},chart,'Epoch');el('text',{x:10,y:15},chart,'MSE');const stride=Math.max(1,Math.ceil(history.length/500)),sample=history.filter((_,i)=>i%stride===0||i===history.length-1);if(sample.length)el('path',{d:sample.map((h,i)=>`${i?'L':'M'} ${65+510*h.epoch/end} ${185-160*h.loss/max}`).join(' '),stroke:'#4b8e50','stroke-width':2,fill:'none'},chart);}
+function render(){const metric=Regression.metrics(points,m,b);$('equation').textContent=`ŷ = ${m.toFixed(3)}x ${b<0?'−':'+'} ${Math.abs(b).toFixed(3)}`;$('epochCount').textContent=`${epoch} / ${points.length}`;$('lossVal').textContent=fmt(metric.mse);$('rmse').textContent=fmt(metric.rmse);$('r2').textContent=fmt(metric.r2);plot();lossChart();controls();}
+function resetModel(){running=false;epoch=0;target=0;credit=0;m=0;b=.5;history=points.length?[{epoch:0,loss:Regression.metrics(points,m,b).mse}]:[];status('Ready','Weights reset to slope 0 and intercept 0.5. Train or advance one epoch.');render();}
+function valid(){if(points.length<2){status('Add data','Add at least two points before training.');return false;}return $('lrInput').reportValidity()&&$('epochsInput').reportValidity();}
+function step(){const next=Regression.step(points,m,b,Number($('lrInput').value)),loss=Regression.metrics(points,next.m,next.b).mse;if(!Number.isFinite(loss)||loss>1e8){running=false;target=epoch;status('Diverged','Training stopped because the loss became too large. Reduce the learning rate and reset the weights.');return false;}m=next.m;b=next.b;epoch++;history.push({epoch,loss});if(history.length>20000)history=history.filter((_,i)=>i%2===0||i===history.length-1);return true;}
+$('train-form').onsubmit=e=>{e.preventDefault();if(!valid())return;target=epoch+Number($('epochsInput').value);running=true;credit=0;last=performance.now();status('Training','Updating slope and intercept to reduce mean squared error.');controls();};
+$('pause').onclick=()=>{running=!running;credit=0;last=performance.now();status(running?'Training':'Paused',running?'Continuing from the current weights.':'Training paused. Inspect residuals, step once, or resume.');controls();};
+$('step').onclick=()=>{if(running||!valid())return;if(step())status('Stepped',`Completed epoch ${epoch}. Loss now reflects the updated weights.`);render();};
+$('resetModel').onclick=resetModel;$('resetBtn').onclick=()=>{points=[];resetModel();status('Empty','Click the plot or use X/Y inputs to add points.');};
+function add(x,y){if(running)return;if(points.length>=100){status('Point limit','This visualizer supports 100 points. Remove a point before adding another.');return;}points.push({x,y});resetModel();status('Data changed','Point added. Training history and weights were reset for the new dataset.');}
+$('point-form').onsubmit=e=>{e.preventDefault();const x=Number($('pointX').value),y=Number($('pointY').value);if(Number.isFinite(x)&&Number.isFinite(y)&&x>=0&&x<=1&&y>=0&&y<=1)add(x,y);};
+$('plot').onclick=e=>{if(running)return;const p=$('plot').createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform($('plot').getScreenCTM().inverse());if($('editMode').value==='remove'){const hit=e.target.closest('[data-index]');if(hit){points.splice(Number(hit.dataset.index),1);resetModel();}return;}const x=(q.x-55)/630,y=(400-q.y)/375;if(x>=0&&x<=1&&y>=0&&y<=1)add(x,y);};
+$('undo').onclick=()=>{if(!running){points.pop();resetModel();}};
+function load(){const kind=$('preset').value;points=Array.from({length:20},(_,i)=>{const x=.05+i*.9/19,noise=(Math.random()-.5)*.14;return {x,y:Math.max(.02,Math.min(.98,kind==='random'?.1+Math.random()*.8:kind==='negative'?.85-.65*x+noise:.15+.65*x+noise))};});if(kind==='outlier')points.push({x:.9,y:.05});resetModel();status('Ready','Dataset loaded. Train the line or add your own points.');}
+$('addRandomBtn').onclick=load;$('speedSlider').oninput=()=>{$('speed-value').textContent=`${$('speedSlider').value} epochs/s`;};['residuals','reference'].forEach(id=>$(id).onchange=plot);$('predictX').oninput=plot;
+function frame(now){if(running){credit+=Math.min((now-last)/1000,.1)*Number($('speedSlider').value);let n=Math.min(Math.floor(credit),target-epoch);credit-=n;const changed=n>0;while(n-->0&&running){if(!step())break;}if(running&&epoch>=target){running=false;status('Run complete',`Finished ${epoch} total epochs. Train again to continue improving these weights.`);}if(changed)render();}last=now;requestAnimationFrame(frame);}
+document.addEventListener('visibilitychange',()=>last=performance.now());load();requestAnimationFrame(frame);

@@ -1,313 +1,34 @@
-const chartContainer = document.getElementById("chart-container");
-const sortInput = document.getElementById("sortInput");
-const actionGroup = document.getElementById("sortActions");
-const algoSelect = document.getElementById("algoSelect");
-const cancelBtn = document.getElementById("cancelBtn");
-const speedRange = document.getElementById("speedRange");
-
-let bars = [];
-let barElements = [];
-let sortingGenerator = null;
-let isSorting = false;
-let isCancelled = false;
-
-// Stats trackers
-let comparisons = 0;
-let swaps = 0;
-
-//================ Functions ================//
-// helper sleep function
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function addBar(val) {
-  const bar = document.createElement("div");
-  bar.className = "bar";
-  bar.style.height = `${val * 3}px`;
-  bar.innerText = val;
-  chartContainer.appendChild(bar);
-  bars.push(val);
-  barElements.push(bar);
-  if (bars.length >= 3) actionGroup.classList.add("show");
+﻿const $=id=>document.getElementById(id),chart=$('chart-container');
+const info={
+  bubble:{summary:'Compare neighbors and move larger values toward the right.',title:'A largest value settles after each pass.',lesson:'Bubble sort swaps adjacent values that are out of order. A pass with no swaps ends the search early.',best:'O(n)',worst:'O(n²) / O(n²)',stable:'Yes',code:['Repeat passes over the unsorted prefix','Compare neighboring values','Swap if the left value is larger','Mark the last value as final','Stop if the pass made no swaps']},
+  selection:{summary:'Find the minimum remaining value and put it in the next slot.',title:'Scan widely. Swap sparingly.',lesson:'Selection sort scans the unsorted suffix for its minimum. It uses at most n − 1 swaps, but still performs quadratic comparisons on sorted inputs.',best:'O(n²)',worst:'O(n²) / O(n²)',stable:'No',code:['Start with the first unsorted value as minimum','Compare each remaining value with minimum','Update the minimum when a smaller value is found','Swap the minimum into the next slot','Mark this slot as final']},
+  insertion:{summary:'Move each new value left into an already sorted prefix.',title:'Build order one value at a time.',lesson:'This version uses adjacent swaps to insert each value. The prefix is locally sorted, but its values may move again. Nearly sorted arrays need fewer swaps.',best:'O(n)',worst:'O(n²) / O(n²)',stable:'Yes',code:['Take the next value after the sorted prefix','Compare it with the value on its left','Swap left while it is smaller','The sorted prefix now includes this value']},
+  quick:{summary:'Partition around a pivot, then sort the smaller subarrays.',title:'Divide around a pivot.',lesson:'This version chooses the last value as pivot. Smaller values move left, then the pivot is fixed. Sorted or duplicate-heavy inputs can trigger its quadratic worst case.',best:'O(n log n)',worst:'O(n log n) / O(n²)',stable:'No',code:['Choose the last value as pivot','Compare each partition value with the pivot','Move smaller values to the left partition','Swap the pivot into the partition boundary','Fix the pivot; recursively sort both sides']}
+};
+let original=[42,18,75,31,60,12,88,53,25,68,36,80],frames=[],index=0,playing=false,credit=0,last=0,barNodes=[];
+const rate=()=>Math.pow(200,Number($('speedRange').value)/1000);
+function speedLabel(){const r=rate();$('speed-value').textContent=`${r<10?r.toFixed(1):Math.round(r)} steps/s`;$('speedRange').setAttribute('aria-valuetext',$('speed-value').textContent);}
+function controls(){const empty=!original.length;$('playBtn').disabled=empty;$('playBtn').textContent=playing?'Ⅱ Pause':index===frames.length-1?'↻ Replay':'▶ Play';$('backBtn').disabled=empty||index===0;$('stepBtn').disabled=empty||index===frames.length-1;$('endBtn').disabled=empty||index===frames.length-1;$('resetBtn').disabled=empty||index===0;$('timeline').disabled=empty;}
+function render(animate=false){
+  const f=frames[index];if(!f)return;const fixed=new Set(f.fixed),active=new Set(f.active),width=chart.clientWidth/Math.max(1,original.length),duration=window.matchMedia('(prefers-reduced-motion: reduce)').matches?0:Math.min(450,850/rate());
+  f.items.forEach((item,i)=>{const el=barNodes[item.id],next=i*width+3,previous=Number(el.dataset.x??next);el.getAnimations().forEach(a=>a.cancel());el.style.transform=`translateX(${next}px)`;el.dataset.x=next;el.className='bar'+(fixed.has(i)?' fixed':'')+(f.pivot===i||f.kind==='key'&&active.has(i)?' pivot':'')+(active.has(i)&&f.kind==='compare'?' compare':'')+(active.has(i)&&f.kind==='swap'?' swap':'');el.querySelector('.bar-index').textContent=i;el.title=`Index ${i}: ${item.value} (original item ${item.id+1})`;if(animate&&next!==previous&&duration)el.animate([{transform:`translateX(${previous}px)`},{transform:`translateX(${next}px)`}],{duration,easing:'cubic-bezier(.22,.7,.2,1)'});});
+  chart.setAttribute('aria-label',`Array: ${f.items.map(v=>v.value).join(', ')}. ${f.text}`);$('status').textContent=original.length?f.text:'The array is empty. Generate an array or add a value.';$('phase').textContent=!original.length?'Empty':f.kind==='done'?'Sorted':playing?'Playing':index===0?'Ready':'Paused';$('compCount').textContent=f.comparisons;$('swapCount').textContent=f.swaps;$('fixedCount').textContent=`${f.fixed.length} / ${original.length}`;$('progress').textContent=`${index} / ${frames.length-1}`;$('timeline').value=index;[...$('code').children].forEach((li,i)=>li.classList.toggle('active',i===f.line));controls();
 }
-
-// the generators
-function* bubbleSortGenerator() {
-  let n = bars.length;
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n - i - 1; j++) {
-      updateStyles(j, j + 1, "comparing");
-      updateStats(true, false);
-      yield;
-      if (bars[j] > bars[j + 1]) {
-        [bars[j], bars[j + 1]] = [bars[j + 1], bars[j]];
-        updateStyles(j, j + 1, "swapping");
-        swapVisuals(j, j + 1);
-        updateStats(false, true);
-        yield;
-      }
-      resetStyles(j, j + 1);
-    }
-    barElements[n - i - 1].classList.add("sorted");
-  }
+function build(){
+  playing=false;index=0;credit=0;frames=sortingFrames(original,$('algoSelect').value);chart.replaceChildren();barNodes=[];chart.style.setProperty('--n',Math.max(1,original.length));chart.style.minWidth=`${Math.max(300,original.length*28)}px`;
+  original.forEach((value,id)=>{const el=document.createElement('div');el.className='bar';el.style.height=`${value*2.8}px`;const label=document.createElement('span'),position=document.createElement('span');label.className='bar-label';label.textContent=value;position.className='bar-index';el.append(label,position);chart.append(el);barNodes[id]=el;});
+  const s=info[$('algoSelect').value];$('summary').textContent=s.summary;$('chart-title').textContent=$('algoSelect').selectedOptions[0].textContent;$('lesson-title').textContent=s.title;$('lesson').textContent=s.lesson;$('best').textContent=s.best;$('worst').textContent=s.worst;$('stable').textContent=s.stable;$('code').replaceChildren();s.code.forEach(line=>{const li=document.createElement('li');li.textContent=line;$('code').append(li);});$('count').textContent=original.length;$('timeline').max=frames.length-1;render();
 }
+function setArray(values){original=values;$('customInput').value=values.join(', ');$('input-message').textContent='';build();}
+function seek(value,animate=false){playing=false;credit=0;index=Math.max(0,Math.min(frames.length-1,value));render(animate);}
+$('playBtn').onclick=()=>{if(index===frames.length-1)index=0;playing=!playing;credit=0;last=performance.now();render();};$('backBtn').onclick=()=>seek(index-1,true);$('stepBtn').onclick=()=>{seek(index+1,true);};$('resetBtn').onclick=()=>seek(0);$('endBtn').onclick=()=>seek(frames.length-1);$('timeline').oninput=()=>seek(Number($('timeline').value));$('speedRange').oninput=speedLabel;
+$('algoSelect').onchange=build;
+$('sizeRange').oninput=()=>{$('size-value').textContent=$('sizeRange').value;};
+$('randomBtn').onclick=()=>{const n=Number($('sizeRange').value),pattern=$('preset').value;let values=Array.from({length:n},()=>1+Math.floor(Math.random()*100));if(pattern==='duplicates')values=Array.from({length:n},()=>[20,40,60,80][Math.floor(Math.random()*4)]);if(['sorted','reverse','nearly'].includes(pattern))values.sort((a,b)=>a-b);if(pattern==='reverse')values.reverse();if(pattern==='nearly'){const i=Math.floor(n/3),j=Math.min(n-1,i+1);[values[i],values[j]]=[values[j],values[i]];}setArray(values);};
+$('array-form').onsubmit=e=>{e.preventDefault();const raw=$('customInput').value.trim(),tokens=raw.split(/[\s,]+/),values=tokens.map(Number);if(!raw||values.length>40||tokens.some(t=>!/^\d+$/.test(t))||values.some(v=>!Number.isInteger(v)||v<1||v>100)){$('input-message').textContent='Enter 1–40 whole numbers from 1 to 100, separated by commas or spaces. The current array has not changed.';return;}setArray(values);};
+$('add-form').onsubmit=e=>{e.preventDefault();const value=Number($('sortInput').value);if(!Number.isInteger(value)||value<1||value>100)return;if(original.length>=40){$('input-message').textContent='The array is full (40 values). Use a smaller array to add another.';return;}setArray([...original,value]);$('sortInput').value='';};$('clearBtn').onclick=()=>setArray([]);
+new ResizeObserver(()=>render()).observe(chart);
+function frame(now){if(playing){credit+=Math.min((now-last)/1000,.1)*rate();const n=Math.floor(credit);if(n){credit-=n;index=Math.min(frames.length-1,index+n);if(index===frames.length-1)playing=false;render(n===1);}}last=now;requestAnimationFrame(frame);}
+document.addEventListener('visibilitychange',()=>{last=performance.now();});
+speedLabel();build();requestAnimationFrame(frame);
 
-function* selectionSortGenerator() {
-  let n = bars.length;
-  for (let i = 0; i < n; i++) {
-    let minIdx = i;
-    updateStyles(minIdx, minIdx, "comparing");
-    for (let j = i + 1; j < n; j++) {
-      updateStyles(j, j, "comparing");
-      updateStats(true, false);
-      yield;
-      if (bars[j] < bars[minIdx]) {
-        resetStyles(minIdx, minIdx);
-        minIdx = j;
-        updateStyles(minIdx, minIdx, "swapping");
-        yield;
-      } else {
-        resetStyles(j, j);
-      }
-    }
-    if (minIdx !== i) {
-      [bars[i], bars[minIdx]] = [bars[minIdx], bars[i]];
-      swapVisuals(i, minIdx);
-      updateStats(false, true);
-      yield;
-    }
-    resetStyles(i, minIdx);
-    barElements[i].classList.add("sorted");
-  }
-}
-
-function* insertionSortGenerator() {
-  let n = bars.length;
-  barElements[0].classList.add("sorted");
-  for (let i = 1; i < n; i++) {
-    let key = bars[i];
-    let j = i - 1;
-    updateStyles(i, i, "swapping");
-    yield;
-    while (j >= 0 && bars[j] > key) {
-      updateStyles(j, j + 1, "comparing");
-      updateStats(true, false);
-      yield;
-      bars[j + 1] = bars[j];
-      swapVisuals(j, j + 1);
-      updateStats(false, true);
-      resetStyles(j, j + 1);
-      j = j - 1;
-      yield;
-    }
-    bars[j + 1] = key;
-    for (let k = 0; k <= i; k++) barElements[k].classList.add("sorted");
-  }
-}
-
-// quick Sort (recursive generator)
-function* quickSortGenerator(low, high) {
-  if (low < high) {
-    let pivotIdx;
-    const partitionGen = partition(low, high);
-    let result = partitionGen.next();
-    while (!result.done) {
-      yield result.value;
-      result = partitionGen.next();
-    }
-    pivotIdx = result.value;
-
-    yield* quickSortGenerator(low, pivotIdx - 1);
-    yield* quickSortGenerator(pivotIdx + 1, high);
-  } else if (low >= 0 && low < bars.length) {
-    barElements[low].classList.add("sorted");
-  }
-}
-
-function* partition(low, high) {
-  let pivot = bars[high];
-  barElements[high].style.backgroundColor = "#9c27b0"; // pivot Color
-  let i = low - 1;
-
-  for (let j = low; j < high; j++) {
-    updateStyles(j, high, "comparing");
-    updateStats(true, false);
-    yield;
-    if (bars[j] < pivot) {
-      i++;
-      [bars[i], bars[j]] = [bars[j], bars[i]];
-      swapVisuals(i, j);
-      updateStats(false, true);
-      updateStyles(i, j, "swapping");
-      yield;
-    }
-    resetStyles(j, high);
-    if (i >= 0) resetStyles(i, i);
-  }
-  [bars[i + 1], bars[high]] = [bars[high], bars[i + 1]];
-  swapVisuals(i + 1, high);
-  updateStats(false, true);
-  barElements[high].style.backgroundColor = "";
-  barElements[i + 1].classList.add("sorted");
-  return i + 1;
-}
-
-// celebration when sorting is done
-function celebrate() {
-  // mrk all bars as sorted just in case
-  barElements.forEach((bar) => bar.classList.add("sorted"));
-
-  // fire confetti!
-  confetti({
-    particleCount: 150,
-    spread: 70,
-    origin: { y: 0.6 },
-    colors: ["#4CAF50", "#2e7d32", "#ffffff"], // matching your green theme
-  });
-}
-
-// init function
-function initGenerator() {
-  const algo = algoSelect.value;
-  comparisons = 0;
-  swaps = 0;
-  updateStats(false, false);
-  if (algo === "bubble") sortingGenerator = bubbleSortGenerator();
-  if (algo === "selection") sortingGenerator = selectionSortGenerator();
-  if (algo === "insertion") sortingGenerator = insertionSortGenerator();
-  if (algo === "quick")
-    sortingGenerator = quickSortGenerator(0, bars.length - 1);
-}
-
-// helper functions
-
-function updateStats(isComp, isSwap) {
-  if (isComp) comparisons++;
-  if (isSwap) swaps++;
-  document.getElementById("compCount").innerText = comparisons;
-  document.getElementById("swapCount").innerText = swaps;
-}
-
-function updateStyles(idx1, idx2, status) {
-  if (barElements[idx1]) barElements[idx1].classList.add(status);
-  if (barElements[idx2]) barElements[idx2].classList.add(status);
-}
-
-function resetStyles(idx1, idx2) {
-  if (barElements[idx1])
-    barElements[idx1].classList.remove("comparing", "swapping");
-  if (barElements[idx2])
-    barElements[idx2].classList.remove("comparing", "swapping");
-}
-
-function swapVisuals(idx1, idx2) {
-  const tempHeight = barElements[idx1].style.height;
-  const tempText = barElements[idx1].innerText;
-  barElements[idx1].style.height = barElements[idx2].style.height;
-  barElements[idx1].innerText = barElements[idx2].innerText;
-  barElements[idx2].style.height = tempHeight;
-  barElements[idx2].innerText = tempText;
-}
-
-function toggleAllControls(disabled) {
-  const btns = document.querySelectorAll("button:not(#cancelBtn)");
-  const inputs = document.querySelectorAll("input, select");
-  btns.forEach((btn) => (btn.disabled = disabled));
-  inputs.forEach((input) => (input.disabled = disabled));
-}
-
-function clearActiveColors() {
-  barElements.forEach((bar) => {
-    bar.classList.remove("comparing", "swapping");
-    if (bar.style.backgroundColor === "rgb(156, 39, 176)")
-      bar.style.backgroundColor = "";
-  });
-}
-
-function resetAll() {
-  bars = [];
-  barElements = [];
-  chartContainer.innerHTML = "";
-  sortingGenerator = null;
-  isSorting = false;
-  isCancelled = false;
-  comparisons = 0;
-  swaps = 0;
-  updateStats(false, false);
-  actionGroup.classList.remove("show");
-}
-
-//================== Body ===================//
-// adding & randomizing
-document.getElementById("addBtn").addEventListener("click", () => {
-  const val = parseInt(sortInput.value);
-  if (isNaN(val) || val < 10 || val > 100) {
-    alert("Please enter a value between 10 and 100.");
-    return;
-  }
-  addBar(val);
-  sortInput.value = "";
-  sortInput.focus();
-});
-
-document.getElementById("randomBtn").addEventListener("click", () => {
-  if (isSorting) return;
-  resetAll();
-  const count = Math.floor(Math.random() * 6) + 10;
-  for (let i = 0; i < count; i++) {
-    addBar(Math.floor(Math.random() * 90) + 10);
-  }
-});
-
-// controls
-document.getElementById("stepBtn").addEventListener("click", () => {
-  if (isSorting) return;
-  if (!sortingGenerator) initGenerator();
-  const result = sortingGenerator.next();
-  if (result.done) {
-    celebrate();
-    sortingGenerator = null;
-  }
-});
-
-document.getElementById("playBtn").addEventListener("click", async () => {
-  if (isSorting) return;
-  isSorting = true;
-  isCancelled = false;
-  toggleAllControls(true);
-  cancelBtn.style.display = "inline-block";
-
-  if (!sortingGenerator) initGenerator();
-
-  let result = sortingGenerator.next();
-  while (!result.done && !isCancelled) {
-    // Speed calculation: Right is faster
-    const currentSpeed = 1050 - parseInt(speedRange.value);
-    await sleep(currentSpeed);
-    result = sortingGenerator.next();
-  }
-
-  if (isCancelled) {
-    clearActiveColors();
-  } else if (result.done) {
-    celebrate();
-    sortingGenerator = null;
-  }
-
-  isSorting = false;
-  cancelBtn.style.display = "none";
-  toggleAllControls(false);
-});
-
-cancelBtn.addEventListener("click", () => {
-  isCancelled = true;
-});
-
-algoSelect.addEventListener("change", () => {
-  sortingGenerator = null;
-  barElements.forEach((bar) => {
-    bar.className = "bar";
-    bar.style.backgroundColor = "";
-  });
-});
-
-document.getElementById("resetBtn").addEventListener("click", resetAll);
